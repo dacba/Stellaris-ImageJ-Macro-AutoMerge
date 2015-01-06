@@ -1,21 +1,9 @@
 macro "NEW Macro 3.0... [r]" {
 /*
-Based off of Trevor's NEW Macro
-
 Output:
 	Metadata text file in Out\Metadata\
 	16bit tiff's of Z-stack images, adjusted, in Out\16bit\
 	Merged RGB sets in Out\
-
-Changelog:
-	3.0 - Start:12/17/14 Completed:12/23/14
-		Complete Re-write of Trevor's NEW Macro (too much to keep track of)
-		Gathers X and Y values of each image
-		Grabs the list of file names that have the same x and y values
-		Merges those files
-	3.1 - 1/5/15
-		Added a few checks for errors
-		Added a estimate time remaining for image merging
 */ 
 
 
@@ -27,6 +15,8 @@ pretty = false;
 inc = 1;
 group = false;
 stack = false;
+reuse = true;
+check_xy = false;
 
 //Dialog
 Dialog.create("ND2 PROCESSOR");
@@ -36,6 +26,7 @@ Dialog.addNumber("min:", 700);
 Dialog.addNumber("max:", 1300);
 Dialog.addCheckbox("Auto Min Max", true);
 Dialog.addCheckbox("Stack Images", false);
+Dialog.addCheckbox("Reuse XY values", true);
 Dialog.show();
 
 //Retrieve Choices
@@ -43,13 +34,25 @@ min = Dialog.getNumber();
 max = Dialog.getNumber();
 pretty = Dialog.getCheckbox();
 stack = Dialog.getCheckbox();
+reuse = Dialog.getCheckbox();
+if (pretty == true) {
+	min = "";
+	max = "";
+	name_auto = "auto";
+	}
+else name_auto = "";
+if (stack == false) name_stack = "";
+else name_stack = "stack";
+
+
 
 //Initialize 
 requires("1.39u");
 setBatchMode(true);
 run("Bio-Formats Macro Extensions");
+run("Input/Output...", "jpeg=85 gif=-1 file=.csv save_row");
 inDir = getDirectory("Choose Directory Containing .ND2 Files ");
-outDir = inDir + "Out-Pictures\\";
+outDir = inDir + "Out-Pictures\\" + min + max + name_auto + name_stack + "\\";
 File.makeDirectory(outDir);
 File.makeDirectory(outDir + "16bit\\");
 File.makeDirectory(outDir + "Metadata\\");
@@ -58,17 +61,21 @@ run("Clear Results");
 print("\\Clear"); //Clear log window
 
 //Primary Function Calls
-xy(inDir, outDir, ""); //Fill result table with x and y values for all files
+if (reuse == true) check_xy = xycheck(outDir); //Checks for a xyvalues.txt in the output folder and opens it into the results table
+if (check_xy == false) {
+	xy(inDir, outDir, ""); //Fill result table with x and y values for all files
+	saveAs("Results", outDir + "xyvalues.txt"); //Save results table for later use
+	}
 start_time = getTime();
 total_results = nResults;
-for (k = 0; nResults > 0; k++) {
+for (k = 0; nResults > 0; k++) { //Loop as long as there are results
 	fileset = newArray();
 	print("Set " + k);
-	fileset = match(fileset);
+	fileset = match(fileset); //Get the set of files for the current set
 	//Array.print(fileset); //Debug
-	set = setname(fileset);
-	main(inDir, outDir, fileset);
-	if (nResults > 0) {
+	set = setname(fileset); //Get the set name
+	main(inDir, outDir, fileset); //Main function call
+	if (nResults > 0) { //Estimated time remaining
 		estimate = round(((getTime() - start_time) * nResults / (total_results - nResults)) / 1000);
 		if (estimate >= 60) {
 			if (estimate/60 >= 60) {
@@ -81,6 +88,26 @@ for (k = 0; nResults > 0; k++) {
 			}
 		else print("Estimated Time Remaining: " + estimate + " s");
 		}
+	}
+
+function xycheck(outBase) { //Initializes the result table and checks to see if an xyvalues.txt already exists
+	setResult("Label", 0, "Initialize");
+	setResult("X", 0, "0");
+	setResult("Y", 0, "0");
+	updateResults();
+	run("Clear Results");
+	if (File.exists(outBase + "xyvalues.txt") == true) { //If the file exists, open it and split it up into lines
+			file = File.openAsString(outBase + "xyvalues.txt");
+			lines = split(file, "\n");
+			for (n = 0; n < lines.length; n++) { //Iterate through each line, split it up by tabs and then add the cells to the results table
+				cell = split(lines[n], "	");
+				setResult("Label", nResults, cell[0]);
+				setResult("X", nResults - 1, cell[1]);
+				setResult("Y", nResults - 1, cell[2]);
+				}
+			return true;
+		}
+	else return false;
 	}
 
 function xy(inBase, outBase, sub) { //Iterates through file system and finds x and y values
