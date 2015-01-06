@@ -70,8 +70,14 @@ for (k = 0; nResults > 0; k++) {
 	main(inDir, outDir, fileset);
 	if (nResults > 0) {
 		estimate = round(((getTime() - start_time) * nResults / (total_results - nResults)) / 1000);
-		if (estimate >= 60 ) {
-			print("Estimated Time Remaining: " + round(estimate/60) + " min " + estimate%60 + " s");
+		if (estimate >= 60) {
+			if (estimate/60 >= 60) {
+				if (estimate/3600 >= 24) {
+					print("Estimated Time Remaining: " round(estimate/86400) + " days " + estimate%86400 + " hours " + estimate%3600 + " min " + estimate%60 + " s");
+					}
+				else print("Estimated Time Remaining: " + round(estimate/3600) + " hours " + estimate%3600 + " min " + estimate%60 + " s");
+				}
+			else print("Estimated Time Remaining: " + round(estimate/60) + " min " + estimate%60 + " s");
 			}
 		else print("Estimated Time Remaining: " + estimate + " s");
 		}
