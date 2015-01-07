@@ -42,7 +42,7 @@ if (pretty == true) {
 	}
 else {
 	name_auto = "";
-	name_min = min + "-";
+	name_min = min;
 	}
 if (stack == false) name_stack = "";
 else name_stack = "stack";
