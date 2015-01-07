@@ -3,7 +3,7 @@ macro "NEW Macro 3.0... [r]" {
 Output:
 	Metadata text file in Out\Metadata\
 	16bit tiff's of Z-stack images, adjusted, in Out\16bit\
-	Merged RGB sets in Out\
+	Merged RGB sets in Output folders
 */ 
 
 
@@ -36,11 +36,14 @@ pretty = Dialog.getCheckbox();
 stack = Dialog.getCheckbox();
 reuse = Dialog.getCheckbox();
 if (pretty == true) {
-	min = "";
+	name_min = "";
 	max = "";
 	name_auto = "auto";
 	}
-else name_auto = "";
+else {
+	name_auto = "";
+	name_min = min + "-";
+	}
 if (stack == false) name_stack = "";
 else name_stack = "stack";
 
@@ -52,7 +55,8 @@ setBatchMode(true);
 run("Bio-Formats Macro Extensions");
 run("Input/Output...", "jpeg=85 gif=-1 file=.csv");
 inDir = getDirectory("Choose Directory Containing .ND2 Files ");
-outDir = inDir + "Out-Pictures\\" + min  + "-" + max + name_auto + name_stack + "\\";
+outDir = inDir + "Out-Pictures\\" + name_min + max + name_auto + name_stack + "-Results\\";
+File.makeDirectory(inDir + "Out-Pictures\\");
 File.makeDirectory(outDir);
 File.makeDirectory(inDir + "Out-Pictures\\16bit\\");
 File.makeDirectory(inDir + "Out-Pictures\\Metadata\\");
@@ -160,7 +164,6 @@ function setname(fileset) { //Returns a set name (begins with "-")
 	q = 1;
 	for (n = 0; n < len; n++) { //For the length of the first file take the first len - n characters
 		sub = substring(fileset[0], 0, len - n);
-		//print("Sub is " + sub); //Debug
 		for (i = 1; i < lengthOf(fileset); i++) { //Check against the other file names
 			if (sub == substring(fileset[i], 0, len - n)) {
 				q++;
