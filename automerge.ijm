@@ -11,19 +11,31 @@ Output:
 //Default Variables
 min = 0;
 max = 0;
+name_minmax = "";
+name_auto = "";
+min_cy3 = 0;
+min_cy35 = 0;
+min_cy55 = 0;
+min_fitc = 0;
+min_dapi = 0;
+max_cy3 = 0;
+max_cy35 = 0;
+max_cy55 = 0;
+max_fitc = 0;
+max_dapi = 0;
 pretty = false;
-inc = 1;
-group = false;
 stack = false;
 check_xy = false;
+separatelut = false;
 
 //Dialog
 Dialog.create("ND2 PROCESSOR");
 
-Dialog.addMessage("Probe Min Max\n");
+Dialog.addMessage("Probe Min Max\nLeave at Zero for Automatic Contrast");
 Dialog.addNumber("min:", 0);
 Dialog.addNumber("max:", 0);
 Dialog.addCheckbox("Stack Images", false);
+Dialog.addCheckbox("Separate LUT", false);
 
 Dialog.show();
 
@@ -31,16 +43,58 @@ Dialog.show();
 min = Dialog.getNumber();
 max = Dialog.getNumber();
 stack = Dialog.getCheckbox();
+separatelut = Dialog.getCheckbox();
+
+if (separatelut == true) {
+	Dialog.create("Separate LUT");
+	
+	Dialog.addMessage("DAPI");
+	Dialog.addNumber("min:", 0);
+	Dialog.addNumber("max:", 0);
+	Dialog.addMessage("FITC");
+	Dialog.addNumber("min:", 0);
+	Dialog.addNumber("max:", 0);
+	Dialog.addMessage("Cy3");
+	Dialog.addNumber("min:", 0);
+	Dialog.addNumber("max:", 0);
+	Dialog.addMessage("Cy3.5");
+	Dialog.addNumber("min:", 0);
+	Dialog.addNumber("max:", 0);
+	Dialog.addMessage("Cy5.5");
+	Dialog.addNumber("min:", 0);
+	Dialog.addNumber("max:", 0);
+	
+	Dialog.show();
+	
+	min_dapi = Dialog.getNumber();
+	max_dapi = Dialog.getNumber();
+	min_fitc = Dialog.getNumber();
+	max_fitc = Dialog.getNumber();
+	min_cy3 = Dialog.getNumber();
+	max_cy3 = Dialog.getNumber();
+	min_cy35 = Dialog.getNumber();
+	max_cy35 = Dialog.getNumber();
+	min_cy55 = Dialog.getNumber();
+	max_cy55 = Dialog.getNumber();
+	}
+
 
 if (min == 0 && max == 0) pretty = true;
-if (pretty == true) {
-	name_min = "";
+if (pretty == true && separatelut == false) {
+	min = "";
 	max = "";
+	name_minmax = "";
 	name_auto = "auto";
 	}
-else {
+else if (pretty == false && separatelut == false) {
 	name_auto = "";
-	name_min = min;
+	name_minmax = "-";
+	}
+if (separatelut == true) {
+	min = "";
+	max = "";
+	name_auto = "";
+	name_minmax = "Cy3-" + min_cy3 + "-" + max_cy3 + "_Cy3.5-" + min_cy35 + "-" + max_cy35 + "_Cy5.5-" + min_cy55 + "-" + max_cy55 + "_FITC-" + min_fitc + "-" + max_fitc + "_DAPI-" + min_dapi + "-" + max_dapi;
 	}
 if (stack == false) name_stack = "";
 else name_stack = "stack";
@@ -53,7 +107,7 @@ setBatchMode(true);
 run("Bio-Formats Macro Extensions");
 run("Input/Output...", "jpeg=85 gif=-1 file=.csv");
 inDir = getDirectory("Choose Directory Containing .ND2 Files ");
-outDir = inDir + "Out-Pictures\\" + name_min + max + name_auto + name_stack + "-Results\\";
+outDir = inDir + "Out-Pictures\\" + min + name_minmax + max + name_auto + name_stack + "-Results\\";
 File.makeDirectory(inDir + "Out-Pictures\\");
 File.makeDirectory(outDir);
 File.makeDirectory(inDir + "Out-Pictures\\16bit\\");
@@ -191,10 +245,30 @@ function main(inBase, outBase, fileset) {
 			info = getImageInfo(); //Move this to xy and pass to this function
 			channel = substring(info, indexOf(info, "Negate") - 6, indexOf(info, "Negate")); //Store the channel
 			if (nSlices > 1) run("Z Project...", "projection=[Max Intensity]"); //Z Project
-			if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
-			else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
-			else if (indexOf(channel, "DAPI") == -1 && pretty == false) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
-			else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
+			
+			if (separatelut == false) {
+				if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
+				else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
+				else if (indexOf(channel, "DAPI") == -1 && pretty == false) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
+				else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
+				}
+			else {
+				//Auto
+				if (indexOf(channel, "= Cy3") > -1 && min_cy3 == 0 && max_cy3 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3
+				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 == 0 && max_cy35 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3.5
+				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 == 0 && max_cy55 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy5.5
+				else if (indexOf(channel, "FITC") > -1 && min_fitc == 0 && max_fitc == 0) run("Enhance Contrast", "saturated=0.001"); //FITC
+				else if (indexOf(channel, "DAPI") > -1 && min_dapi == 0 && max_dapi == 0) run("Enhance Contrast", "saturated=1.0"); //DAPI
+				else exit("Channel was not recorded properly");
+				//Manual
+				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 != 0 || max_cy3 != 0)) setMinAndMax(min_cy3,max_cy3); //Cy3
+				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 != 0 || max_cy35 != 0)) setMinAndMax(min_cy35,max_cy35); //Cy3.5
+				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 != 0 || max_cy55 != 0)) setMinAndMax(min_cy55,max_cy55); //Cy5.5
+				else if (indexOf(channel, "FITC") > -1 && (min_fitc != 0 || max_fitc != 0)) setMinAndMax(min_fitc,max_fitc); //FITC
+				else if (indexOf(channel, "DAPI") > -1 && (min_dapi != 0 || max_dapi != 0)) setMinAndMax(min_dapi,max_dapi); //DAPI
+				else exit("Channel was not recorded properly");
+				}
+				
 			setMetadata("Info", channel);
 			save(inBase + "Out-Pictures\\16bit\\" + filename + ".tif"); //save as 16bit tif in the appropriate subfolder
 			if (len == 2) {
@@ -224,10 +298,26 @@ function main(inBase, outBase, fileset) {
 			print("File: " + filename_tif);
 			open(path);
 			channel = getMetadata();
-			if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
-			else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
-			else if (indexOf(channel, "DAPI") == -1 && pretty == false) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
-			else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
+			if (separatelut == false) {
+				if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
+				else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
+				else if (indexOf(channel, "DAPI") == -1 && pretty == false) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
+				else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
+				}
+			else {
+				//Auto
+				if (indexOf(channel, "= Cy3") > -1 && min_cy3 == 0 && max_cy3 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3
+				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 == 0 && max_cy35 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3.5
+				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 == 0 && max_cy55 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy5.5
+				else if (indexOf(channel, "FITC") > -1 && min_fitc == 0 && max_fitc == 0) run("Enhance Contrast", "saturated=0.001"); //FITC
+				else if (indexOf(channel, "DAPI") > -1 && min_dapi == 0 && max_dapi == 0) run("Enhance Contrast", "saturated=1.0"); //DAPI
+				//Manual
+				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 != 0 || max_cy3 != 0)) setMinAndMax(min_cy3,max_cy3); //Cy3
+				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 != 0 || max_cy35 != 0)) setMinAndMax(min_cy35,max_cy35); //Cy3.5
+				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 != 0 || max_cy55 != 0)) setMinAndMax(min_cy55,max_cy55); //Cy5.5
+				else if (indexOf(channel, "FITC") > -1 && (min_fitc != 0 || max_fitc != 0)) setMinAndMax(min_fitc,max_fitc); //FITC
+				else if (indexOf(channel, "DAPI") > -1 && (min_dapi != 0 || max_dapi != 0)) setMinAndMax(min_dapi,max_dapi); //DAPI
+				}
 			if (len == 2) {
 				if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + filename_tif + "] ";//DAPI; Blue
 				else file5 = "c4=[" + filename_tif + "]";//Other channel; Grey
@@ -246,7 +336,9 @@ function main(inBase, outBase, fileset) {
 				}
 			else exit("Something bad happened... Go talk to Trevor"); //fileset is empty
 			} //End of for loop
-		name_set = substring(set, 19, lengthOf(set));
+		name_end = indexOf(set, ".tif");
+		if (name_end == -1) name_end = lengthOf(set);
+		name_set = substring(set, 19, name_end);
 		}
 	
 	if (stack == false) {
@@ -259,7 +351,7 @@ function main(inBase, outBase, fileset) {
 		run("Images to Stack", "name=Stack title=[] use");
 		stackname =  "Stack-";
 		}
-	save(outBase + name_set + stackname + "Set " + k + ".tif"); //save
+	save(outBase + name_set + "-" + stackname + "Set" + k + ".tif"); //save
 	run("Close All");
 	run("Collect Garbage");
 	}//End of function
