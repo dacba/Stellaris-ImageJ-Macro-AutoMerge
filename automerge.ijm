@@ -15,26 +15,24 @@ pretty = false;
 inc = 1;
 group = false;
 stack = false;
-reuse = true;
 check_xy = false;
 
 //Dialog
 Dialog.create("ND2 PROCESSOR");
 
 Dialog.addMessage("Probe Min Max\n");
-Dialog.addNumber("min:", 700);
-Dialog.addNumber("max:", 1300);
-Dialog.addCheckbox("Auto Min Max", true);
+Dialog.addNumber("min:", 0);
+Dialog.addNumber("max:", 0);
 Dialog.addCheckbox("Stack Images", false);
-Dialog.addCheckbox("Reuse XY values", true);
+
 Dialog.show();
 
 //Retrieve Choices
 min = Dialog.getNumber();
 max = Dialog.getNumber();
-pretty = Dialog.getCheckbox();
 stack = Dialog.getCheckbox();
-reuse = Dialog.getCheckbox();
+
+if (min == 0 && max == 0) pretty = true;
 if (pretty == true) {
 	name_min = "";
 	max = "";
@@ -65,7 +63,7 @@ run("Clear Results");
 print("\\Clear"); //Clear log window
 
 //Primary Function Calls
-if (reuse == true) check_xy = xycheck(); //Checks for a xyvalues.txt in the output folder and opens it into the results table
+check_xy = xycheck(); //Checks for a xyvalues.txt in the output folder and opens it into the results table
 if (check_xy == false) {
 	xy(inDir, outDir, ""); //Fill result table with x and y values for all files
 	saveAs("Results", inDir + "Out-Pictures\\xyvalues.txt"); //Save results table for later use
