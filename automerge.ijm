@@ -1,4 +1,4 @@
-macro "NEW Macro 3.0... [r]" {
+macro "Auto Merge .nd2... [r]" {
 /*
 Output:
 	Metadata text file in Out\Metadata\
@@ -27,6 +27,14 @@ pretty = false;
 stack = false;
 check_xy = false;
 separatelut = false;
+
+//Dialog Warning
+Dialog.create("Warning");
+Dialog.addMessage("WARNING");
+Dialog.addMessage("If this program crashed previously press \"Cancel\" and delete\nthe \"Out-Pictures\" folder that was created in the target directory");
+Dialog.show();
+
+Dialog.show();
 
 //Dialog
 Dialog.create("ND2 PROCESSOR");
@@ -102,7 +110,7 @@ else name_stack = "stack";
 
 
 //Initialize 
-requires("1.39u");
+requires("1.49m");
 setBatchMode(true);
 run("Bio-Formats Macro Extensions");
 run("Input/Output...", "jpeg=85 gif=-1 file=.csv");
@@ -177,7 +185,7 @@ function xy(inBase, outBase, sub) { //Iterates through file system and finds x a
 		else if (indexOf(path, "Out") == -1 && endsWith(path, ".nd2") == true) {
 			strip = replace(substring(path, 0, indexOf(path, ".nd2")), "/", "_");
 			run("Bio-Formats Importer", "open=[" + inBase + path + "] display_metadata view=[Metadata only]");
-			wait(50);
+			selectWindow("Original Metadata - " + list[i]);
 			saveAs("Text", inBase + "Out-Pictures\\Metadata\\" + strip + ".txt");
 			run("Close");
 			info = File.openAsString(inBase + "Out-Pictures\\Metadata\\" + strip + ".txt");
@@ -247,26 +255,56 @@ function main(inBase, outBase, fileset) {
 			if (nSlices > 1) run("Z Project...", "projection=[Max Intensity]"); //Z Project
 			
 			if (separatelut == false) {
+				//Can be optimized
 				if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
 				else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
-				else if (indexOf(channel, "DAPI") == -1 && pretty == false) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
-				else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
+				else if (indexOf(channel, "DAPI") == -1 && pretty == false && min != 0 && max != 0) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
+				else if (indexOf(channel, "DAPI") == -1 && pretty == false && (min == 0 || max == 0)) {
+					run("Enhance Contrast", "saturated=0.01");
+					getMinAndMax(temp_min,temp_max);
+					if (min == 0) setMinAndMax(temp_min,max);
+					else if (max ==0 ) setMinAndMax(min,temp_max);
+					} //if not DAPI and not pretty and either
+					else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
 				}
 			else {
-				//Auto
-				if (indexOf(channel, "= Cy3") > -1 && min_cy3 == 0 && max_cy3 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3
-				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 == 0 && max_cy35 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3.5
-				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 == 0 && max_cy55 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy5.5
-				else if (indexOf(channel, "FITC") > -1 && min_fitc == 0 && max_fitc == 0) run("Enhance Contrast", "saturated=0.001"); //FITC
-				else if (indexOf(channel, "DAPI") > -1 && min_dapi == 0 && max_dapi == 0) run("Enhance Contrast", "saturated=1.0"); //DAPI
-				else exit("Channel was not recorded properly");
 				//Manual
-				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 != 0 || max_cy3 != 0)) setMinAndMax(min_cy3,max_cy3); //Cy3
-				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 != 0 || max_cy35 != 0)) setMinAndMax(min_cy35,max_cy35); //Cy3.5
-				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 != 0 || max_cy55 != 0)) setMinAndMax(min_cy55,max_cy55); //Cy5.5
-				else if (indexOf(channel, "FITC") > -1 && (min_fitc != 0 || max_fitc != 0)) setMinAndMax(min_fitc,max_fitc); //FITC
-				else if (indexOf(channel, "DAPI") > -1 && (min_dapi != 0 || max_dapi != 0)) setMinAndMax(min_dapi,max_dapi); //DAPI
-				else exit("Channel was not recorded properly");
+				if (indexOf(channel, "= Cy3") > -1 && min_cy3 != 0 && max_cy3 != 0) setMinAndMax(min_cy3,max_cy3); //Cy3
+				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 != 0 && max_cy35 != 0) setMinAndMax(min_cy35,max_cy35); //Cy3.5
+				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 != 0 && max_cy55 != 0) setMinAndMax(min_cy55,max_cy55); //Cy5.5
+				else if (indexOf(channel, "FITC") > -1 && min_fitc != 0 && max_fitc != 0) setMinAndMax(min_fitc,max_fitc); //FITC
+				else if (indexOf(channel, "DAPI") > -1 && min_dapi != 0 && max_dapi != 0) setMinAndMax(min_dapi,max_dapi); //DAPI
+				//Semi-Manual or Auto
+				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 == 0 || max_cy3 == 0)){
+					run("Enhance Contrast", "saturated=0.01"); //Cy3
+					getMinAndMax(temp_min,temp_max);
+					if (min_cy3 == 0) setMinAndMax(temp_min,max_cy3); //Cy3
+					else if (max_cy3 ==0) setMinAndMax(min_cy3, temp_max);
+					}
+				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 == 0 || max_cy35 == 0)){
+					run("Enhance Contrast", "saturated=0.01"); //Cy3.5
+					getMinAndMax(temp_min,temp_max);
+					if (min_cy35 == 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
+					else if (max_cy35 ==0) setMinAndMax(min_cy35, temp_max);
+					}
+				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 == 0 || max_cy55 == 0)){
+					run("Enhance Contrast", "saturated=0.01"); //Cy5.5
+					getMinAndMax(temp_min,temp_max);
+					if (min_cy55 == 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
+					else if (max_cy55 ==0) setMinAndMax(min_cy55, temp_max);
+					}
+				else if (indexOf(channel, "FITC") > -1 && (min_fitc == 0 || max_fitc == 0)){
+					run("Enhance Contrast", "saturated=0.001"); //fitc
+					getMinAndMax(temp_min,temp_max);
+					if (min_fitc == 0) setMinAndMax(temp_min,max_fitc); //fitc
+					else if (max_fitc ==0) setMinAndMax(min_fitc, temp_max);
+					}
+				else if (indexOf(channel, "DAPI") > -1 && (min_dapi == 0 || max_dapi == 0)){
+					run("Enhance Contrast", "saturated=1.0"); //dapi
+					getMinAndMax(temp_min,temp_max);
+					if (min_dapi == 0) setMinAndMax(temp_min,max_dapi); //dapi
+					else if (max_dapi ==0) setMinAndMax(min_dapi, temp_max);
+					}
 				}
 				
 			setMetadata("Info", channel);
@@ -301,22 +339,52 @@ function main(inBase, outBase, fileset) {
 			if (separatelut == false) {
 				if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
 				else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
-				else if (indexOf(channel, "DAPI") == -1 && pretty == false) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
+				else if (indexOf(channel, "DAPI") == -1 && pretty == false && (min == 0 || max == 0)) {
+					run("Enhance Contrast", "saturated=0.01");
+					getMinAndMax(temp_min,temp_max);
+					if (min == 0) setMinAndMax(temp_min,max);
+					else if (max ==0 ) setMinAndMax(min,temp_max);
+					} //if not DAPI and not pretty and either
 				else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
 				}
 			else {
-				//Auto
-				if (indexOf(channel, "= Cy3") > -1 && min_cy3 == 0 && max_cy3 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3
-				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 == 0 && max_cy35 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy3.5
-				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 == 0 && max_cy55 == 0) run("Enhance Contrast", "saturated=0.01"); //Cy5.5
-				else if (indexOf(channel, "FITC") > -1 && min_fitc == 0 && max_fitc == 0) run("Enhance Contrast", "saturated=0.001"); //FITC
-				else if (indexOf(channel, "DAPI") > -1 && min_dapi == 0 && max_dapi == 0) run("Enhance Contrast", "saturated=1.0"); //DAPI
 				//Manual
-				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 != 0 || max_cy3 != 0)) setMinAndMax(min_cy3,max_cy3); //Cy3
-				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 != 0 || max_cy35 != 0)) setMinAndMax(min_cy35,max_cy35); //Cy3.5
-				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 != 0 || max_cy55 != 0)) setMinAndMax(min_cy55,max_cy55); //Cy5.5
-				else if (indexOf(channel, "FITC") > -1 && (min_fitc != 0 || max_fitc != 0)) setMinAndMax(min_fitc,max_fitc); //FITC
-				else if (indexOf(channel, "DAPI") > -1 && (min_dapi != 0 || max_dapi != 0)) setMinAndMax(min_dapi,max_dapi); //DAPI
+				if (indexOf(channel, "= Cy3") > -1 && min_cy3 != 0 && max_cy3 != 0) setMinAndMax(min_cy3,max_cy3); //Cy3
+				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 != 0 && max_cy35 != 0) setMinAndMax(min_cy35,max_cy35); //Cy3.5
+				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 != 0 && max_cy55 != 0) setMinAndMax(min_cy55,max_cy55); //Cy5.5
+				else if (indexOf(channel, "FITC") > -1 && min_fitc != 0 && max_fitc != 0) setMinAndMax(min_fitc,max_fitc); //FITC
+				else if (indexOf(channel, "DAPI") > -1 && min_dapi != 0 && max_dapi != 0) setMinAndMax(min_dapi,max_dapi); //DAPI
+				//Semi-Manual
+				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 == 0 || max_cy3 == 0)){
+					run("Enhance Contrast", "saturated=0.01"); //Cy3
+					getMinAndMax(temp_min,temp_max);
+					if (min_cy3 == 0) setMinAndMax(temp_min,max_cy3); //Cy3
+					else if (max_cy3 ==0) setMinAndMax(min_cy3, temp_max);
+					}
+				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 == 0 || max_cy35 == 0)){
+					run("Enhance Contrast", "saturated=0.01"); //Cy3.5
+					getMinAndMax(temp_min,temp_max);
+					if (min_cy35 == 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
+					else if (max_cy35 ==0) setMinAndMax(min_cy35, temp_max);
+					}
+				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 == 0 || max_cy55 == 0)){
+					run("Enhance Contrast", "saturated=0.01"); //Cy5.5
+					getMinAndMax(temp_min,temp_max);
+					if (min_cy55 == 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
+					else if (max_cy55 ==0) setMinAndMax(min_cy55, temp_max);
+					}
+				else if (indexOf(channel, "FITC") > -1 && (min_fitc == 0 || max_fitc == 0)){
+					run("Enhance Contrast", "saturated=0.001"); //fitc
+					getMinAndMax(temp_min,temp_max);
+					if (min_fitc == 0) setMinAndMax(temp_min,max_fitc); //fitc
+					else if (max_fitc ==0) setMinAndMax(min_fitc, temp_max);
+					}
+				else if (indexOf(channel, "DAPI") > -1 && (min_dapi == 0 || max_dapi == 0)){
+					run("Enhance Contrast", "saturated=1.0"); //dapi
+					getMinAndMax(temp_min,temp_max);
+					if (min_dapi == 0) setMinAndMax(temp_min,max_dapi); //dapi
+					else if (max_dapi ==0) setMinAndMax(min_dapi, temp_max);
+					}
 				}
 			if (len == 2) {
 				if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + filename_tif + "] ";//DAPI; Blue
