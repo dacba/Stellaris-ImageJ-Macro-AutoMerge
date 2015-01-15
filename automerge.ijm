@@ -1,3 +1,4 @@
+
 macro "Auto Merge .nd2... [r]" {
 /*
 Output:
@@ -27,14 +28,6 @@ pretty = false;
 stack = false;
 check_xy = false;
 separatelut = false;
-
-//Dialog Warning
-Dialog.create("Warning");
-Dialog.addMessage("WARNING");
-Dialog.addMessage("If this program crashed previously press \"Cancel\" and delete\nthe \"Out-Pictures\" folder that was created in the target directory");
-Dialog.show();
-
-Dialog.show();
 
 //Dialog
 Dialog.create("ND2 PROCESSOR");
