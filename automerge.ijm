@@ -118,9 +118,9 @@ run("Clear Results");
 print("\\Clear"); //Clear log window
 
 //Primary Function Calls
-check_xy = xycheck(); //Checks for a xyvalues.txt in the output folder and opens it into the results table
+check_xy = AM_xycheck(); //Checks for a xyvalues.txt in the output folder and opens it into the results table
 if (check_xy == false) {
-	xy(inDir, outDir, ""); //Fill result table with x and y values for all files
+	AM_xy(inDir, outDir, ""); //Fill result table with x and y values for all files
 	saveAs("Results", inDir + "Out-Pictures\\xyvalues.txt"); //Save results table for later use
 	}
 start_time = getTime();
@@ -128,10 +128,10 @@ total_results = nResults;
 for (k = 0; nResults > 0; k++) { //Loop as long as there are results
 	fileset = newArray();
 	print("Set " + k);
-	fileset = match(fileset); //Get the set of files for the current set
+	fileset = AM_match(fileset); //Get the set of files for the current set
 	//Array.print(fileset); //Debug
-	set = setname(fileset); //Get the set name
-	main(inDir, outDir, fileset); //Main function call
+	set = AM_setname(fileset); //Get the set name
+	AM_main(inDir, outDir, fileset); //Main function call
 	if (nResults > 0) { //Estimated time remaining
 		estimate = round(((getTime() - start_time) * nResults / (total_results - nResults)) / 1000);
 		if (estimate >= 60) {
@@ -147,7 +147,7 @@ for (k = 0; nResults > 0; k++) { //Loop as long as there are results
 		}
 	}
 
-function xycheck() { //Initializes the result table and checks to see if an xyvalues.txt already exists
+function AM_xycheck() { //Initializes the result table and checks to see if an xyvalues.txt already exists
 	setResult("Label", 0, "Initialize");
 	setResult("X", 0, "0");
 	setResult("Y", 0, "0");
@@ -168,12 +168,12 @@ function xycheck() { //Initializes the result table and checks to see if an xyva
 	else return false;
 	}
 
-function xy(inBase, outBase, sub) { //Iterates through file system and finds x and y values
+function AM_xy(inBase, outBase, sub) { //Iterates through file system and finds x and y values
 	list = getFileList(inBase + sub);
 	for (i = 0; i < list.length; i++) {
 		path = sub + list[i];
 		if (endsWith(path, "/") && indexOf(path, "Out") == -1) {
-			xy(inBase, outBase, path); //Recursion
+			AM_xy(inBase, outBase, path); //Recursion
 			}
 		else if (indexOf(path, "Out") == -1 && endsWith(path, ".nd2") == true) {
 			strip = replace(substring(path, 0, indexOf(path, ".nd2")), "/", "_");
@@ -192,7 +192,7 @@ function xy(inBase, outBase, sub) { //Iterates through file system and finds x a
 		}
 	}
 
-function match(fileset) { //Returns an array of the paths of a set, and deletes the entries in the results table
+function AM_match(fileset) { //Returns an array of the paths of a set, and deletes the entries in the results table
 	xtemp = getResult("X", 0);
 	ytemp = getResult("Y", 0);
 	updateResults();
@@ -211,7 +211,7 @@ function match(fileset) { //Returns an array of the paths of a set, and deletes 
 	return fileset;
 	}
 
-function setname(fileset) { //Returns a set name (begins with "-")
+function AM_setname(fileset) { //Returns a set name (begins with "-")
 	len = lengthOf(fileset[0]);
 	p = lengthOf(fileset);
 	q = 1;
@@ -228,7 +228,7 @@ function setname(fileset) { //Returns a set name (begins with "-")
 	return "Unknown";
 	}
 
-function main(inBase, outBase, fileset) {
+function AM_main(inBase, outBase, fileset) {
 	len = lengthOf(fileset);
 	merge = "";
 	file1 = "";
