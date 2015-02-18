@@ -212,7 +212,10 @@ function AM_match(fileset) { //Returns an array of the paths of a set, and delet
 	}
 
 function AM_setname(fileset) { //Returns a set name (begins with "-")
-	len = lengthOf(fileset[0]);
+	len = 100;
+	for (i = 0; i < fileset.length; i++) {
+		if (lengthOf(fileset[i]) < len) len = lengthOf(fileset[i]);
+		}
 	p = lengthOf(fileset);
 	q = 1;
 	for (n = 0; n < len; n++) { //For the length of the first file take the first len - n characters
