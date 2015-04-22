@@ -112,6 +112,7 @@ outDir = inDir + "Out-Pictures\\" + min + name_minmax + max + name_auto + name_s
 File.makeDirectory(inDir + "Out-Pictures\\");
 File.makeDirectory(outDir);
 File.makeDirectory(inDir + "Out-Pictures\\16bit\\");
+File.makeDirectory(inDir + "Out-Pictures\\8bit\\");
 File.makeDirectory(inDir + "Out-Pictures\\Metadata\\");
 run("Close All");
 run("Clear Results");
@@ -185,8 +186,8 @@ function AM_xy(inBase, outBase, sub) { //Iterates through file system and finds 
 			xpos = indexOf(info, "dXPos") + 6;
 			ypos = indexOf(info, "dYPos") + 6;
 			setResult("Label", nResults, sub + list[i]);
-			setResult("X", nResults - 1, substring(info, xpos, ypos - 7));
-			setResult("Y", nResults - 1, substring(info, ypos, indexOf(info, "dZ") - 1));
+			setResult("X", nResults - 1, parseInt(substring(info, xpos, ypos - 7)));
+			setResult("Y", nResults - 1, parseInt(substring(info, ypos, indexOf(info, "dZ") - 1)));
 			updateResults();
 			}
 		}
@@ -197,7 +198,7 @@ function AM_match(fileset) { //Returns an array of the paths of a set, and delet
 	ytemp = getResult("Y", 0);
 	updateResults();
 	for (i = 0; i < nResults; i++) {
-		if (xtemp == getResult("X", i) && ytemp == getResult("Y", i)) {
+		if (abs(xtemp - getResult("X", i)) < 1 && abs(ytemp - getResult("Y", i)) < 1) {
 			name = getResultLabel(i);
 			if (File.exists(inDir + "Out-Pictures\\16bit\\" + replace(replace(name, ".nd2", ".tif"), "/", "_")) == true) {
 				print(name + " was found in the 16bit tif folder from a previous iteration.  Will use the 16bit tif");
@@ -274,37 +275,40 @@ function AM_main(inBase, outBase, fileset) {
 				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 == 0 || max_cy3 == 0)){
 					run("Enhance Contrast", "saturated=0.01"); //Cy3
 					getMinAndMax(temp_min,temp_max);
-					if (min_cy3 == 0) setMinAndMax(temp_min,max_cy3); //Cy3
-					else if (max_cy3 ==0) setMinAndMax(min_cy3, temp_max);
+					if (min_cy3 == 0 && max_cy3 != 0) setMinAndMax(temp_min,max_cy3); //Cy3
+					else if (max_cy3 == 0 && min_cy3 != 0) setMinAndMax(min_cy3, temp_max);
 					}
 				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 == 0 || max_cy35 == 0)){
 					run("Enhance Contrast", "saturated=0.01"); //Cy3.5
 					getMinAndMax(temp_min,temp_max);
-					if (min_cy35 == 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
-					else if (max_cy35 ==0) setMinAndMax(min_cy35, temp_max);
+					if (min_cy35 == 0 && max_cy35 != 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
+					else if (max_cy35 == 0 && min_cy35 != 0) setMinAndMax(min_cy35, temp_max);
 					}
 				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 == 0 || max_cy55 == 0)){
 					run("Enhance Contrast", "saturated=0.01"); //Cy5.5
 					getMinAndMax(temp_min,temp_max);
-					if (min_cy55 == 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
-					else if (max_cy55 ==0) setMinAndMax(min_cy55, temp_max);
+					if (min_cy55 == 0 && max_cy55 != 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
+					else if (max_cy55 == 0 && min_cy55 != 0) setMinAndMax(min_cy55, temp_max);
 					}
 				else if (indexOf(channel, "FITC") > -1 && (min_fitc == 0 || max_fitc == 0)){
 					run("Enhance Contrast", "saturated=0.001"); //fitc
 					getMinAndMax(temp_min,temp_max);
-					if (min_fitc == 0) setMinAndMax(temp_min,max_fitc); //fitc
-					else if (max_fitc ==0) setMinAndMax(min_fitc, temp_max);
+					if (min_fitc == 0 && max_fitc != 0) setMinAndMax(temp_min,max_fitc); //fitc
+					else if (max_fitc == 0 && min_fitc != 0) setMinAndMax(min_fitc, temp_max);
 					}
 				else if (indexOf(channel, "DAPI") > -1 && (min_dapi == 0 || max_dapi == 0)){
-					run("Enhance Contrast", "saturated=1.0"); //dapi
+					run("Enhance Contrast", "saturated=0.1"); //dapi
 					getMinAndMax(temp_min,temp_max);
-					if (min_dapi == 0) setMinAndMax(temp_min,max_dapi); //dapi
-					else if (max_dapi ==0) setMinAndMax(min_dapi, temp_max);
+					if (min_dapi == 0 && max_dapi != 0) setMinAndMax(temp_min,max_dapi); //dapi
+					else if (max_dapi == 0 && min_dapi != 0) setMinAndMax(min_dapi, temp_max);
 					}
 				}
 				
 			setMetadata("Info", channel);
 			save(inBase + "Out-Pictures\\16bit\\" + filename + ".tif"); //save as 16bit tif in the appropriate subfolder
+			run("8-bit");
+			save(inBase + "Out-Pictures\\8bit\\" + filename + ".tif"); //save as 8bit tif in the appropriate subfolder
+			
 			if (len == 2) {
 				if (indexOf(channel, "DAPI") > -1) file3 = "c3=[MAX_" + fileset[n] + "] ";//DAPI; Blue
 				else file5 = "c4=[MAX_" + fileset[n] + "]";//Other channel; Grey
@@ -354,32 +358,32 @@ function AM_main(inBase, outBase, fileset) {
 				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 == 0 || max_cy3 == 0)){
 					run("Enhance Contrast", "saturated=0.01"); //Cy3
 					getMinAndMax(temp_min,temp_max);
-					if (min_cy3 == 0) setMinAndMax(temp_min,max_cy3); //Cy3
-					else if (max_cy3 ==0) setMinAndMax(min_cy3, temp_max);
+					if (min_cy3 == 0 && max_cy3 != 0) setMinAndMax(temp_min,max_cy3); //Cy3
+					else if (max_cy3 == 0 && min_cy3 != 0) setMinAndMax(min_cy3, temp_max);
 					}
 				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 == 0 || max_cy35 == 0)){
 					run("Enhance Contrast", "saturated=0.01"); //Cy3.5
 					getMinAndMax(temp_min,temp_max);
-					if (min_cy35 == 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
-					else if (max_cy35 ==0) setMinAndMax(min_cy35, temp_max);
+					if (min_cy35 == 0 && max_cy35 != 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
+					else if (max_cy35 == 0 && min_cy35 != 0) setMinAndMax(min_cy35, temp_max);
 					}
 				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 == 0 || max_cy55 == 0)){
 					run("Enhance Contrast", "saturated=0.01"); //Cy5.5
 					getMinAndMax(temp_min,temp_max);
-					if (min_cy55 == 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
-					else if (max_cy55 ==0) setMinAndMax(min_cy55, temp_max);
+					if (min_cy55 == 0 && max_cy55 != 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
+					else if (max_cy55 == 0 && min_cy55 != 0) setMinAndMax(min_cy55, temp_max);
 					}
 				else if (indexOf(channel, "FITC") > -1 && (min_fitc == 0 || max_fitc == 0)){
 					run("Enhance Contrast", "saturated=0.001"); //fitc
 					getMinAndMax(temp_min,temp_max);
-					if (min_fitc == 0) setMinAndMax(temp_min,max_fitc); //fitc
-					else if (max_fitc ==0) setMinAndMax(min_fitc, temp_max);
+					if (min_fitc == 0 && max_fitc != 0) setMinAndMax(temp_min,max_fitc); //fitc
+					else if (max_fitc == 0 && min_fitc != 0) setMinAndMax(min_fitc, temp_max);
 					}
 				else if (indexOf(channel, "DAPI") > -1 && (min_dapi == 0 || max_dapi == 0)){
 					run("Enhance Contrast", "saturated=1.0"); //dapi
 					getMinAndMax(temp_min,temp_max);
-					if (min_dapi == 0) setMinAndMax(temp_min,max_dapi); //dapi
-					else if (max_dapi ==0) setMinAndMax(min_dapi, temp_max);
+					if (min_dapi == 0 && max_dapi != 0) setMinAndMax(temp_min,max_dapi); //dapi
+					else if (max_dapi == 0 && min_dapi != 0) setMinAndMax(min_dapi, temp_max);
 					}
 				}
 			if (len == 2) {
