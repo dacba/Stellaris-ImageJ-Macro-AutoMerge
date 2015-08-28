@@ -111,9 +111,13 @@ inDir = getDirectory("Choose Directory Containing .ND2 Files ");
 outDir = inDir + "Out-Pictures\\" + min + name_minmax + max + name_auto + name_stack + "-Results\\";
 File.makeDirectory(inDir + "Out-Pictures\\");
 File.makeDirectory(outDir);
-File.makeDirectory(inDir + "Out-Pictures\\16bit\\");
-File.makeDirectory(inDir + "Out-Pictures\\8bit\\");
-File.makeDirectory(inDir + "Out-Pictures\\Metadata\\");
+fullDir = inDir + "Out-Merged Images\\Max\\";
+halfDir = inDir + "Out-Merged Images\\Max 8-bit\\";
+metaDir = inDir + "Out-Merged Images\\Metadata\\";
+File.makeDirectory(inDir + "Out-Merged Images\\");
+File.makeDirectory(fullDir);
+File.makeDirectory(halfDir);
+File.makeDirectory(metaDir);
 run("Close All");
 run("Clear Results");
 print("\\Clear"); //Clear log window
@@ -128,7 +132,7 @@ start_time = getTime();
 total_results = nResults;
 for (k = 0; nResults > 0; k++) { //Loop as long as there are results
 	fileset = newArray();
-	print("Set " + k);
+	print("----------\nSet " + k);
 	fileset = AM_match(fileset); //Get the set of files for the current set
 	//Array.print(fileset); //Debug
 	set = AM_setname(fileset); //Get the set name
@@ -180,14 +184,14 @@ function AM_xy(inBase, outBase, sub) { //Iterates through file system and finds 
 			strip = replace(substring(path, 0, indexOf(path, ".nd2")), "/", "_");
 			run("Bio-Formats Importer", "open=[" + inBase + path + "] display_metadata view=[Metadata only]");
 			selectWindow("Original Metadata - " + list[i]);
-			saveAs("Text", inBase + "Out-Pictures\\Metadata\\" + strip + ".txt");
+			saveAs("Text", metaDir + strip + ".txt");
 			run("Close");
-			info = File.openAsString(inBase + "Out-Pictures\\Metadata\\" + strip + ".txt");
+			info = File.openAsString(metaDir + strip + ".txt");
 			xpos = indexOf(info, "dXPos") + 6;
 			ypos = indexOf(info, "dYPos") + 6;
 			setResult("Label", nResults, sub + list[i]);
-			setResult("X", nResults - 1, parseInt(substring(info, xpos, ypos - 7)));
-			setResult("Y", nResults - 1, parseInt(substring(info, ypos, indexOf(info, "dZ") - 1)));
+			setResult("X", nResults - 1, substring(info, xpos, ypos - 7));
+			setResult("Y", nResults - 1, substring(info, ypos, indexOf(info, "dZ") - 1));
 			updateResults();
 			}
 		}
@@ -198,11 +202,12 @@ function AM_match(fileset) { //Returns an array of the paths of a set, and delet
 	ytemp = getResult("Y", 0);
 	updateResults();
 	for (i = 0; i < nResults; i++) {
-		if (abs(xtemp - getResult("X", i)) < 1 && abs(ytemp - getResult("Y", i)) < 1) {
+		if (xtemp == getResult("X", i) && ytemp == getResult("Y", i)) {
 			name = getResultLabel(i);
-			if (File.exists(inDir + "Out-Pictures\\16bit\\" + replace(replace(name, ".nd2", ".tif"), "/", "_")) == true) {
-				print(name + " was found in the 16bit tif folder from a previous iteration.  Will use the 16bit tif");
-				fileset = Array.concat(fileset, "Out-Pictures\\16bit\\" + replace(replace(name, ".nd2", ".tif"), "/", "_"));
+			//print(name); //Debug
+			if (File.exists(replace(replace(name, ".nd2", ".tif"), "/", "_")) == true) {
+				//print(name + " was found in the 16bit tif folder from a previous iteration.  Will use the 16bit tif");
+				fileset = Array.concat(fileset, replace(replace(name, ".nd2", ".tif"), "/", "_"));
 				}
 			else fileset = Array.concat(fileset, name);
 			IJ.deleteRows(i, i);
@@ -213,6 +218,7 @@ function AM_match(fileset) { //Returns an array of the paths of a set, and delet
 	}
 
 function AM_setname(fileset) { //Returns a set name (begins with "-")
+	if (fileset.length == 0) return "Unknown";
 	len = 100;
 	for (i = 0; i < fileset.length; i++) {
 		if (lengthOf(fileset[i]) < len) len = lengthOf(fileset[i]);
@@ -232,6 +238,13 @@ function AM_setname(fileset) { //Returns a set name (begins with "-")
 	return "Unknown";
 	}
 
+function AM_Slice_Naming() {
+	for (n = 1; n <= nSlices; n++) {
+		setSlice(n);
+		drawString(getMetadata(), 10, 40, 'white');
+		}
+	}
+	
 function AM_main(inBase, outBase, fileset) {
 	len = lengthOf(fileset);
 	merge = "";
@@ -240,185 +253,137 @@ function AM_main(inBase, outBase, fileset) {
 	file3 = "";
 	file5 = "";
 	file7 = "";
-	if (endsWith(fileset[0], ".nd2") == true) { //for .nd2 files
-		for (n = 0; n < len; n++) { //Loop through the fileset names
-			path = inBase + fileset[n]; //Full path name
-			filename = replace(substring(fileset[n], 0, indexOf(fileset[n], ".nd2")), "/", "_"); //For 	saving as 16-bit, subdirectory with underscores
-			print("File: " + fileset[n]);
+	
+	for (n = 0; n < len; n++) { //Loop through the fileset names
+		path = inBase + fileset[n]; //Full path name
+		filename = replace(substring(fileset[n], 0, indexOf(fileset[n], ".nd2")), "/", "_"); //For saving as 16-bit, subdirectory with underscores
+		short_filename = substring(filename, lastIndexOf(filename, "_") + 1, lengthOf(filename));
+		print("File: " + fileset[n]);
+		//print(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"));
+		
+		//Get Channel info
+		run("Bio-Formats Importer", "open=[" + path + "] display_metadata view=[Metadata only]");
+		selectWindow("Original Metadata - " + short_filename + ".nd2");
+		saveAs("Text", inBase + "temp.txt");
+		run("Close");
+		info = File.openAsString(inBase + "temp.txt");
+		File.delete(inBase + "temp.txt");
+		if (indexOf(info, "Name	Cy3") > -1) channel = "Cy3.0";
+		else if (indexOf(info, "Name	Cy3.5") > -1) channel = "Cy3.5";
+		else if (indexOf(info, "Name	Cy5.5") > -1) channel = "Cy5.5";
+		else if (indexOf(info, "Name	FITC") > -1) channel = "FITC";
+		else if (indexOf(info, "Name	DAPI") > -1) channel = "DAPI";
+		//print(channel);
+		
+		//Check if 16bit tif files are open instead
+		if (File.exists(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"))) { //16 bit tif exists
+			open(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"));
+			//print("Using Tif file");
+			window_name = filename + ".tif";
+			}
+		else {
 			run("Bio-Formats Importer", "open=[" + path + "] autoscale color_mode=Grayscale view=Hyperstack");
-			if (nSlices == 1) exit("This program requires unaltered .nd2 files\nPlease restart the macro and point to the unaltered .nd2 files");
-			info = getImageInfo(); //Move this to xy and pass to this function
-			channel = substring(info, indexOf(info, "Negate") - 6, indexOf(info, "Negate")); //Store the channel
-			if (nSlices > 1) run("Z Project...", "projection=[Max Intensity]"); //Z Project
-			
-			if (separatelut == false) {
-				//Can be optimized
-				if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
-				else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
-				else if (indexOf(channel, "DAPI") == -1 && pretty == false && min != 0 && max != 0) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
-				else if (indexOf(channel, "DAPI") == -1 && pretty == false && (min == 0 || max == 0)) {
-					run("Enhance Contrast", "saturated=0.01");
-					getMinAndMax(temp_min,temp_max);
-					if (min == 0) setMinAndMax(temp_min,max);
-					else if (max ==0 ) setMinAndMax(min,temp_max);
-					} //if not DAPI and not pretty and either
-					else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
-				}
-			else {
-				//Manual
-				if (indexOf(channel, "= Cy3") > -1 && min_cy3 != 0 && max_cy3 != 0) setMinAndMax(min_cy3,max_cy3); //Cy3
-				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 != 0 && max_cy35 != 0) setMinAndMax(min_cy35,max_cy35); //Cy3.5
-				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 != 0 && max_cy55 != 0) setMinAndMax(min_cy55,max_cy55); //Cy5.5
-				else if (indexOf(channel, "FITC") > -1 && min_fitc != 0 && max_fitc != 0) setMinAndMax(min_fitc,max_fitc); //FITC
-				else if (indexOf(channel, "DAPI") > -1 && min_dapi != 0 && max_dapi != 0) setMinAndMax(min_dapi,max_dapi); //DAPI
-				//Semi-Manual or Auto
-				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 == 0 || max_cy3 == 0)){
-					run("Enhance Contrast", "saturated=0.01"); //Cy3
-					getMinAndMax(temp_min,temp_max);
-					if (min_cy3 == 0 && max_cy3 != 0) setMinAndMax(temp_min,max_cy3); //Cy3
-					else if (max_cy3 == 0 && min_cy3 != 0) setMinAndMax(min_cy3, temp_max);
-					}
-				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 == 0 || max_cy35 == 0)){
-					run("Enhance Contrast", "saturated=0.01"); //Cy3.5
-					getMinAndMax(temp_min,temp_max);
-					if (min_cy35 == 0 && max_cy35 != 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
-					else if (max_cy35 == 0 && min_cy35 != 0) setMinAndMax(min_cy35, temp_max);
-					}
-				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 == 0 || max_cy55 == 0)){
-					run("Enhance Contrast", "saturated=0.01"); //Cy5.5
-					getMinAndMax(temp_min,temp_max);
-					if (min_cy55 == 0 && max_cy55 != 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
-					else if (max_cy55 == 0 && min_cy55 != 0) setMinAndMax(min_cy55, temp_max);
-					}
-				else if (indexOf(channel, "FITC") > -1 && (min_fitc == 0 || max_fitc == 0)){
-					run("Enhance Contrast", "saturated=0.001"); //fitc
-					getMinAndMax(temp_min,temp_max);
-					if (min_fitc == 0 && max_fitc != 0) setMinAndMax(temp_min,max_fitc); //fitc
-					else if (max_fitc == 0 && min_fitc != 0) setMinAndMax(min_fitc, temp_max);
-					}
-				else if (indexOf(channel, "DAPI") > -1 && (min_dapi == 0 || max_dapi == 0)){
-					run("Enhance Contrast", "saturated=0.1"); //dapi
-					getMinAndMax(temp_min,temp_max);
-					if (min_dapi == 0 && max_dapi != 0) setMinAndMax(temp_min,max_dapi); //dapi
-					else if (max_dapi == 0 && min_dapi != 0) setMinAndMax(min_dapi, temp_max);
-					}
-				}
-				
-			setMetadata("Info", channel);
-			save(inBase + "Out-Pictures\\16bit\\" + filename + ".tif"); //save as 16bit tif in the appropriate subfolder
-			run("8-bit");
-			save(inBase + "Out-Pictures\\8bit\\" + filename + ".tif"); //save as 8bit tif in the appropriate subfolder
-			
-			if (len == 2) {
-				if (indexOf(channel, "DAPI") > -1) file3 = "c3=[MAX_" + fileset[n] + "] ";//DAPI; Blue
-				else file5 = "c4=[MAX_" + fileset[n] + "]";//Other channel; Grey
-				}
-			else if (len > 2) {
-				//Color Merge stuff
-				if (indexOf(channel, "Cy5.5") > -1) file1 = "c1=[MAX_" + fileset[n] + "] ";//Cy5.5; Red
-				if (indexOf(channel, "FITC") > -1) file2 = "c2=[MAX_" + fileset[n] + "] ";//FITC; Green
-				if (indexOf(channel, "DAPI") > -1) file3 = "c3=[MAX_" + fileset[n] + "] ";//DAPI; Blue
-				if (indexOf(channel, "= Cy3") > -1) file7 = "c7=[MAX_" + fileset[n] + "]";//Cy3; Yellow
-				if (indexOf(channel, "Cy3.5") > -1) file5 = "c5=[MAX_" + fileset[n] + "] ";//Cy3.5; Cyan (Note: c4 is grey, c6 is magenta)
-				}
-			else if (len == 1) {
-				print("Single Channel Detected");
-				file5 = "c4=[MAX_" + fileset[n] + "]";
-				}
-			else exit("Something bad happened... Go talk to Trevor"); //fileset is empty
-			}//End of for loop
-		name_set = set;
-		}
-	else if (endsWith(fileset[0], ".tif") == true) { //for .tif files
-		for (n = 0; n < len; n++) { //Loop through the fileset names
-			path = inBase + fileset[n]; //Full path name
-			filename_tif = substring(fileset[n], 19); //Removes the folder parts
-			print("File: " + filename_tif);
-			open(path);
-			channel = getMetadata();
-			if (separatelut == false) {
-				if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
-				else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
-				else if (indexOf(channel, "DAPI") == -1 && pretty == false && (min == 0 || max == 0)) {
-					run("Enhance Contrast", "saturated=0.01");
-					getMinAndMax(temp_min,temp_max);
-					if (min == 0) setMinAndMax(temp_min,max);
-					else if (max ==0 ) setMinAndMax(min,temp_max);
-					} //if not DAPI and not pretty and either
+			window_raw = getImageID();
+			if (nSlices == 1) exit("This program requires unaltered multi image nd2 files\nPlease restart the macro and point to the unaltered .nd2 files");
+			window_name = "MAX_" + fileset[n];
+			}
+		if (nSlices > 1) {
+			run("Z Project...", "projection=[Max Intensity]"); //Z Project
+			selectImage(window_raw);
+			close();
+			}
+		if (separatelut == false) {
+			//Can be optimized
+			if (indexOf(channel, "DAPI") == -1 && pretty == true) run("Enhance Contrast", "saturated=0.01"); //Makes the channel thats not DAPI look pretty if that's what the user wanted
+			else if (indexOf(channel, "FITC") > -1 && pretty == true) run("Enhance Contrast", "saturated=0.001"); //Makes the FITC channel look pretty if that's what the user wanted
+			else if (indexOf(channel, "DAPI") == -1 && pretty == false && min != 0 && max != 0) setMinAndMax(min,max); //if not DAPI and not pretty then apply min max
+			else if (indexOf(channel, "DAPI") == -1 && pretty == false && (min == 0 || max == 0)) {
+				run("Enhance Contrast", "saturated=0.01");
+				getMinAndMax(temp_min,temp_max);
+				if (min == 0) setMinAndMax(temp_min,max);
+				else if (max ==0 ) setMinAndMax(min,temp_max);
+				} //if not DAPI and not pretty and either
 				else run("Enhance Contrast", "saturated=1.0"); //if DAPI then auto enhance
+			}
+		else {
+			//Manual
+			if (indexOf(channel, "Cy3.0") > -1 && min_cy3 != 0 && max_cy3 != 0) setMinAndMax(min_cy3,max_cy3); //Cy3
+			else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 != 0 && max_cy35 != 0) setMinAndMax(min_cy35,max_cy35); //Cy3.5
+			else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 != 0 && max_cy55 != 0) setMinAndMax(min_cy55,max_cy55); //Cy5.5
+			else if (indexOf(channel, "FITC") > -1 && min_fitc != 0 && max_fitc != 0) setMinAndMax(min_fitc,max_fitc); //FITC
+			else if (indexOf(channel, "DAPI") > -1 && min_dapi != 0 && max_dapi != 0) setMinAndMax(min_dapi,max_dapi); //DAPI
+			//Semi-Manual or Auto
+			if (indexOf(channel, "Cy3.0") > -1 && (min_cy3 == 0 || max_cy3 == 0)){
+				run("Enhance Contrast", "saturated=0.01"); //Cy3
+				getMinAndMax(temp_min,temp_max);
+				if (min_cy3 == 0 && max_cy3 != 0) setMinAndMax(temp_min,max_cy3); //Cy3
+				else if (max_cy3 ==0 && min_cy3 != 0) setMinAndMax(min_cy3, temp_max);
 				}
-			else {
-				//Manual
-				if (indexOf(channel, "= Cy3") > -1 && min_cy3 != 0 && max_cy3 != 0) setMinAndMax(min_cy3,max_cy3); //Cy3
-				else if (indexOf(channel, "Cy3.5") > -1 && min_cy35 != 0 && max_cy35 != 0) setMinAndMax(min_cy35,max_cy35); //Cy3.5
-				else if (indexOf(channel, "Cy5.5") > -1 && min_cy55 != 0 && max_cy55 != 0) setMinAndMax(min_cy55,max_cy55); //Cy5.5
-				else if (indexOf(channel, "FITC") > -1 && min_fitc != 0 && max_fitc != 0) setMinAndMax(min_fitc,max_fitc); //FITC
-				else if (indexOf(channel, "DAPI") > -1 && min_dapi != 0 && max_dapi != 0) setMinAndMax(min_dapi,max_dapi); //DAPI
-				//Semi-Manual
-				if (indexOf(channel, "= Cy3") > -1 && (min_cy3 == 0 || max_cy3 == 0)){
-					run("Enhance Contrast", "saturated=0.01"); //Cy3
-					getMinAndMax(temp_min,temp_max);
-					if (min_cy3 == 0 && max_cy3 != 0) setMinAndMax(temp_min,max_cy3); //Cy3
-					else if (max_cy3 == 0 && min_cy3 != 0) setMinAndMax(min_cy3, temp_max);
-					}
-				else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 == 0 || max_cy35 == 0)){
-					run("Enhance Contrast", "saturated=0.01"); //Cy3.5
-					getMinAndMax(temp_min,temp_max);
-					if (min_cy35 == 0 && max_cy35 != 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
-					else if (max_cy35 == 0 && min_cy35 != 0) setMinAndMax(min_cy35, temp_max);
-					}
-				else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 == 0 || max_cy55 == 0)){
-					run("Enhance Contrast", "saturated=0.01"); //Cy5.5
-					getMinAndMax(temp_min,temp_max);
-					if (min_cy55 == 0 && max_cy55 != 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
-					else if (max_cy55 == 0 && min_cy55 != 0) setMinAndMax(min_cy55, temp_max);
-					}
-				else if (indexOf(channel, "FITC") > -1 && (min_fitc == 0 || max_fitc == 0)){
-					run("Enhance Contrast", "saturated=0.001"); //fitc
-					getMinAndMax(temp_min,temp_max);
-					if (min_fitc == 0 && max_fitc != 0) setMinAndMax(temp_min,max_fitc); //fitc
-					else if (max_fitc == 0 && min_fitc != 0) setMinAndMax(min_fitc, temp_max);
-					}
-				else if (indexOf(channel, "DAPI") > -1 && (min_dapi == 0 || max_dapi == 0)){
-					run("Enhance Contrast", "saturated=1.0"); //dapi
-					getMinAndMax(temp_min,temp_max);
-					if (min_dapi == 0 && max_dapi != 0) setMinAndMax(temp_min,max_dapi); //dapi
-					else if (max_dapi == 0 && min_dapi != 0) setMinAndMax(min_dapi, temp_max);
-					}
+			else if (indexOf(channel, "Cy3.5") > -1 && (min_cy35 == 0 || max_cy35 == 0)){
+				run("Enhance Contrast", "saturated=0.01"); //Cy3.5
+				getMinAndMax(temp_min,temp_max);
+				if (min_cy35 == 0 && max_cy35 != 0) setMinAndMax(temp_min,max_cy35); //Cy3.5
+				else if (max_cy35 ==0 && min_cy35 != 0) setMinAndMax(min_cy35, temp_max);
 				}
-			if (len == 2) {
-				if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + filename_tif + "] ";//DAPI; Blue
-				else file5 = "c4=[" + filename_tif + "]";//Other channel; Grey
+			else if (indexOf(channel, "Cy5.5") > -1 && (min_cy55 == 0 || max_cy55 == 0)){
+				run("Enhance Contrast", "saturated=0.01"); //Cy5.5
+				getMinAndMax(temp_min,temp_max);
+				if (min_cy55 == 0 && max_cy55 != 0) setMinAndMax(temp_min,max_cy55); //Cy5.5
+				else if (max_cy55 ==0 && min_cy55 != 0) setMinAndMax(min_cy55, temp_max);
 				}
-			else if (len > 2) {
-				//Color Merge stuff
-				if (indexOf(channel, "Cy5.5") > -1) file1 = "c1=[" + filename_tif + "] ";//Cy5.5; Red
-				if (indexOf(channel, "FITC") > -1) file2 = "c2=[" + filename_tif + "] ";//FITC; Green
-				if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + filename_tif + "] ";//DAPI; Blue
-				if (indexOf(channel, "= Cy3") > -1) file7 = "c7=[" + filename_tif + "]";//Cy3; Yellow
-				if (indexOf(channel, "Cy3.5") > -1) file5 = "c5=[" + filename_tif + "] ";//Cy3.5; Cyan (Note: c4 is grey, c6 is magenta)
+			else if (indexOf(channel, "FITC") > -1 && (min_fitc == 0 || max_fitc == 0)){
+				run("Enhance Contrast", "saturated=0.001"); //fitc
+				getMinAndMax(temp_min,temp_max);
+				if (min_fitc == 0 && max_fitc != 0) setMinAndMax(temp_min,max_fitc); //fitc
+				else if (max_fitc ==0 && min_fitc != 0) setMinAndMax(min_fitc, temp_max);
 				}
-			else if (len == 1) {
-				print("Single Channel Detected");
-				file5 = "c4=[" + filename_tif + "]";
+			else if (indexOf(channel, "DAPI") > -1 && (min_dapi == 0 || max_dapi == 0)){
+				run("Enhance Contrast", "saturated=1.0"); //dapi
+				getMinAndMax(temp_min,temp_max);
+				if (min_dapi == 0 && max_dapi != 0) setMinAndMax(temp_min,max_dapi); //dapi
+				else if (max_dapi ==0 && min_dapi != 0) setMinAndMax(min_dapi, temp_max);
 				}
-			else exit("Something bad happened... Go talk to Trevor"); //fileset is empty
-			} //End of for loop
-		name_end = indexOf(set, ".tif");
-		if (name_end == -1) name_end = lengthOf(set);
-		name_set = substring(set, 19, name_end);
-		}
+			}
+			
+		setMetadata("Info", channel);
+		save(fullDir + filename + ".tif"); //save as 16bit tif in the appropriate subfolder
+		run("8-bit");
+		save(halfDir + filename + ".tif");
+		if (len == 2) {
+			if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + window_name + "] ";//DAPI; Blue
+			else file5 = "c4=[" + window_name + "]";//Other channel; Grey
+			}
+		else if (len > 2) {
+			//Color Merge stuff
+			if (indexOf(channel, "Cy5.5") > -1) file1 = "c1=[" + window_name + "] ";//Cy5.5; Red
+			if (indexOf(channel, "FITC") > -1) file2 = "c2=[" + window_name + "] ";//FITC; Green
+			if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + window_name + "] ";//DAPI; Blue
+			if (indexOf(channel, "Cy3.0") > -1) file7 = "c7=[" + window_name + "]";//Cy3; Yellow
+			if (indexOf(channel, "Cy3.5") > -1) file5 = "c5=[" + window_name + "] ";//Cy3.5; Cyan (Note: c4 is grey, c6 is magenta)
+			}
+		else if (len == 1) {
+			print("Single Channel Detected");
+			file5 = "c4=[" + window_name + "]";
+			}
+		else exit("Something bad happened... Go talk to Trevor"); //fileset is empty
+		} //End of for loop
+	name_set = set;
 	
 	if (stack == false) {
 		merge = file1 + file2 + file3 + file5 + file7 + " create"; //add up the channels that were found
+		//print(merge);
 		run("Merge Channels...", merge); //MERGE!
 		run("RGB Color"); //Change to rgb color file
 		stackname = "RGB-";
 		}
 	else if (stack == true) {
 		run("Images to Stack", "name=Stack title=[] use");
+		//run("StackReg", "transformation=Translation"); //Align the images
+		run("Enhance Contrast...", "saturated=0.01 process_all");
+		AM_Slice_Naming();
 		stackname =  "Stack-";
 		}
+	if (endsWith(name_set, "-") == true) name_set = substring(name_set, 0, lengthOf(name_set) - 1);
 	save(outBase + name_set + "-" + stackname + "Set" + k + ".tif"); //save
 	run("Close All");
 	run("Collect Garbage");
