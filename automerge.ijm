@@ -282,7 +282,7 @@ function AM_main(inBase, outBase, fileset) {
 			window_name = filename + ".tif";
 			}
 		else {
-			run("Bio-Formats Importer", "open=[" + path + "] autoscale color_mode=Grayscale view=Hyperstack");
+			run("Bio-Formats Importer", "open=[" + path + "] autoscale color_mode=Default view=Hyperstack");
 			window_raw = getImageID();
 			if (nSlices == 1) exit("This program requires unaltered multi image nd2 files\nPlease restart the macro and point to the unaltered .nd2 files");
 			window_name = "MAX_" + fileset[n];
@@ -349,31 +349,12 @@ function AM_main(inBase, outBase, fileset) {
 		save(fullDir + filename + ".tif"); //save as 16bit tif in the appropriate subfolder
 		run("8-bit");
 		save(halfDir + filename + ".tif");
-		if (len == 2) {
-			if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + window_name + "] ";//DAPI; Blue
-			else file5 = "c4=[" + window_name + "]";//Other channel; Grey
-			}
-		else if (len > 2) {
-			//Color Merge stuff
-			if (indexOf(channel, "Cy5.5") > -1) file1 = "c1=[" + window_name + "] ";//Cy5.5; Red
-			if (indexOf(channel, "FITC") > -1) file2 = "c2=[" + window_name + "] ";//FITC; Green
-			if (indexOf(channel, "DAPI") > -1) file3 = "c3=[" + window_name + "] ";//DAPI; Blue
-			if (indexOf(channel, "Cy3.0") > -1) file7 = "c7=[" + window_name + "]";//Cy3; Yellow
-			if (indexOf(channel, "Cy3.5") > -1) file5 = "c5=[" + window_name + "] ";//Cy3.5; Cyan (Note: c4 is grey, c6 is magenta)
-			}
-		else if (len == 1) {
-			print("Single Channel Detected");
-			file5 = "c4=[" + window_name + "]";
-			}
-		else exit("Something bad happened... Go talk to Trevor"); //fileset is empty
 		} //End of for loop
 	name_set = set;
 	
 	if (stack == false) {
-		merge = file1 + file2 + file3 + file5 + file7 + " create"; //add up the channels that were found
-		//print(merge);
-		run("Merge Channels...", merge); //MERGE!
-		run("RGB Color"); //Change to rgb color file
+		run("Images to Stack", "name=Stack title=[] use");
+		run("Stack to RGB");
 		stackname = "RGB-";
 		}
 	else if (stack == true) {
