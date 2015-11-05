@@ -246,14 +246,7 @@ function AM_Slice_Naming() {
 	}
 	
 function AM_main(inBase, outBase, fileset) {
-	len = lengthOf(fileset);
-	merge = "";
-	file1 = "";
-	file2 = "";
-	file3 = "";
-	file5 = "";
-	file7 = "";
-	
+	len = lengthOf(fileset);	
 	for (n = 0; n < len; n++) { //Loop through the fileset names
 		path = inBase + fileset[n]; //Full path name
 		filename = replace(substring(fileset[n], 0, indexOf(fileset[n], ".nd2")), "/", "_"); //For saving as 16-bit, subdirectory with underscores
