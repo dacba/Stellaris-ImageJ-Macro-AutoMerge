@@ -12,6 +12,8 @@ Output:
 //Default Variables
 min = 0;
 max = 0;
+grey = true;
+raw = false;
 name_minmax = "";
 name_auto = "";
 min_cy3 = 0;
@@ -35,14 +37,18 @@ Dialog.create("ND2 PROCESSOR");
 Dialog.addMessage("Probe Min Max\nLeave at Zero for Automatic Contrast");
 Dialog.addNumber("min:", 0);
 Dialog.addNumber("max:", 0);
-Dialog.addCheckbox("Stack Images", false);
-Dialog.addCheckbox("Separate LUT", false);
+//Dialog.addCheckbox("Greyscale", grey);
+Dialog.addCheckbox("Use Raw Files", raw);
+Dialog.addCheckbox("Stack Images", stack);
+Dialog.addCheckbox("Separate LUT", separatelut);
 
 Dialog.show();
 
 //Retrieve Choices
 min = Dialog.getNumber();
 max = Dialog.getNumber();
+//grey = Dialog.getCheckbox();
+raw = Dialog.getCheckbox();
 stack = Dialog.getCheckbox();
 separatelut = Dialog.getCheckbox();
 
@@ -80,6 +86,7 @@ if (separatelut == true) {
 	}
 
 
+if (stack == true) grey = true;
 if (min == 0 && max == 0) pretty = true;
 if (pretty == true && separatelut == false) {
 	min = "";
@@ -250,13 +257,13 @@ function AM_main(inBase, outBase, fileset) {
 	for (n = 0; n < len; n++) { //Loop through the fileset names
 		path = inBase + fileset[n]; //Full path name
 		filename = replace(substring(fileset[n], 0, indexOf(fileset[n], ".nd2")), "/", "_"); //For saving as 16-bit, subdirectory with underscores
-		short_filename = substring(filename, lastIndexOf(filename, "_") + 1, lengthOf(filename));
+		short_filename = substring(fileset[n], lastIndexOf(fileset[n], "/") + 1, lengthOf(fileset[n]));
 		print("File: " + fileset[n]);
 		//print(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"));
 		
 		//Get Channel info
 		run("Bio-Formats Importer", "open=[" + path + "] display_metadata view=[Metadata only]");
-		selectWindow("Original Metadata - " + short_filename + ".nd2");
+		selectWindow("Original Metadata - " + short_filename);
 		saveAs("Text", inBase + "temp.txt");
 		run("Close");
 		info = File.openAsString(inBase + "temp.txt");
@@ -269,13 +276,14 @@ function AM_main(inBase, outBase, fileset) {
 		//print(channel);
 		
 		//Check if 16bit tif files are open instead
-		if (File.exists(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"))) { //16 bit tif exists
+		if (File.exists(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_")) && raw == false) { //16 bit tif exists
 			open(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"));
 			//print("Using Tif file");
 			window_name = filename + ".tif";
 			}
 		else {
-			run("Bio-Formats Importer", "open=[" + path + "] autoscale color_mode=Default view=Hyperstack");
+			if (grey == false) run("Bio-Formats Importer", "open=[" + path + "] autoscale color_mode=Default view=Hyperstack");
+			else run("Bio-Formats Importer", "open=[" + path + "] autoscale color_mode=Grayscale view=Hyperstack");
 			window_raw = getImageID();
 			if (nSlices == 1) exit("This program requires unaltered multi image nd2 files\nPlease restart the macro and point to the unaltered .nd2 files");
 			window_name = "MAX_" + fileset[n];
@@ -344,7 +352,6 @@ function AM_main(inBase, outBase, fileset) {
 		save(halfDir + filename + ".tif");
 		} //End of for loop
 	name_set = set;
-	
 	if (stack == false) {
 		run("Images to Stack", "name=Stack title=[] use");
 		run("Stack to RGB");
