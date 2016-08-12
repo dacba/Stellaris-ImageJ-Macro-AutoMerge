@@ -12,7 +12,7 @@ Output:
 //Default Variables
 min = 0;
 max = 0;
-norm = false;
+norm = true;
 raw = false;
 name_minmax = "";
 name_auto = "";
@@ -37,7 +37,7 @@ Dialog.create("ND2 PROCESSOR");
 Dialog.addMessage("Probe Min Max\nLeave at Zero for Automatic Contrast");
 Dialog.addNumber("min:", 0);
 Dialog.addNumber("max:", 0);
-Dialog.addCheckbox("Use Normalized Data", norm);
+Dialog.addCheckbox("Use Normalized Data If available", norm);
 Dialog.addCheckbox("Use Raw Files", raw);
 Dialog.addCheckbox("Stack Images", stack);
 Dialog.addCheckbox("Separate LUT", separatelut);
@@ -271,7 +271,9 @@ function AM_main(inBase, outBase, fileset) {
 	for (n = 0; n < len; n++) { //Loop through the fileset names
 		path = inBase + fileset[n]; //Full path name
 		filename = replace(substring(fileset[n], 0, indexOf(fileset[n], ".nd2")), "/", "_"); //For saving as 16-bit, subdirectory with underscores
-		short_filename = substring(fileset[n], lastIndexOf(fileset[n], "/") + 1, lengthOf(fileset[n]));
+		short_filename = substring(fileset[n], lastIndexOf(fileset[n], "/") + 1, lengthOf(fileset[n])); //File name without subdirectory
+		strip_short_filename = substring(short_filename, 0, indexOf(short_filename, "."));
+		strip_filename = substring(fileset[n], 0, indexOf(fileset[n], "."));
 		//print(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"));
 		
 		//Get Channel info
@@ -291,26 +293,29 @@ function AM_main(inBase, outBase, fileset) {
 		//Check if 16bit tif files exist and use those instead
 		if (channel == "DAPI" && File.exists(DAPIDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_")) && raw == false) {
 			open(DAPIDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"));
-			window_name = filename + ".tif";
+			window_raw = strip_filename + ".tif";
 			}
 		else if (File.exists(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_")) && raw == false) { //16 bit tif exists
 			open(fullDir + replace(replace(fileset[n], ".nd2", ".tif"), "/", "_"));
-			window_name = filename + ".tif";
+			window_raw = strip_filename + ".tif";
 			}
 		else {
 			run("Bio-Formats Importer", "open=[" + path + "] autoscale color_mode=Grayscale view=Hyperstack");
-			window_name = filename + ".nd2";
+			window_raw = strip_filename + ".nd2";
 			//if (nSlices == 1 && channel != "DAPI") exit("This program requires unaltered multi image nd2 files\nPlease restart the macro and point to the unaltered .nd2 files");
 			}
 		
-		print("File used: " + window_name);
+		print("File used: " + window_raw);
 		print("Channel: " + channel);
 		
 		if (nSlices > 1) {
 			run("Z Project...", "projection=[Max Intensity]"); //Z Project
-			window_name = getInfo("image.filename");
+			window_name = "MAX_" + window_raw;
 			selectImage(window_raw);
 			close();
+			}
+		else {
+			window_name = getInfo("image.filename");
 			}
 		if (separatelut == false) {
 			//Can be optimized
